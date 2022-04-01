@@ -294,12 +294,12 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
             input = batch['input'].to(device)
             target = batch['target'].to(device)
             out = model(input)
-            pred = np.asarray(torch.max(out, 1))
-
+            _, pred = torch.max(out, dim=1)
+            #pred = pred.cpu().detach().numpy()
+            
             # Calculates metrics based on output
             loss = criterion(out, target)
-
-            mIoU = iou(pred, np.asarray(target), 4) #convert out and target to numpy arrays? use torch.max?
+            mIoU = iou(pred, target, 4) #convert out and target to numpy arrays? use torch.max?
             total_loss += loss
             total_iou += sum(mIoU) 
 
@@ -315,10 +315,11 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
                 input = batch['input'].to(device)
                 target = batch['target'].to(device)
                 out = model(input)
+                _, pred = torch.max(out, dim=1)
 
                 # Calculates metrics based on output
                 loss = criterion(out, target)
-                mIoU = iou(out, target, 4)
+                mIoU = iou(pred, target, 4)
                 total_loss += loss
                 total_iou += sum(mIoU) 
 
