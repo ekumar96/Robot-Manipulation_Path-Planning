@@ -275,10 +275,11 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
             input = batch['input'].to(device)
             target = batch['target'].to(device)
             out = model(input)
+            pred = np.asarray(torch.max(out, 1))
 
             # Calculates metrics based on output
             loss = criterion(out, target)
-            mIoU = iou(out, target)
+            mIoU = iou(pred, np.asarray(target), 4) #convert out and target to numpy arrays? use torch.max?
             total_loss += loss
             total_iou += sum(mIoU) 
 
@@ -297,7 +298,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
                 # Calculates metrics based on output
                 loss = criterion(out, target)
-                mIoU = iou(out, target)
+                mIoU = iou(out, target, 4)
                 total_loss += loss
                 total_iou += sum(mIoU) 
 
@@ -359,7 +360,7 @@ if __name__ == "__main__":
 
     # TODO: Prepare model
     # ===============================================================================
-    model = miniUNet(3, 6).to(device)
+    model = miniUNet(3, 4).to(device)
 
     # ===============================================================================
 
