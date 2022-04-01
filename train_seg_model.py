@@ -299,7 +299,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
             
             # Calculates metrics based on output
             loss = criterion(out, target)
-            mIoU = iou(pred, target, 4) #convert out and target to numpy arrays? use torch.max?
+            mIoU = iou(pred, target) #convert out and target to numpy arrays? use torch.max?
             total_loss += loss
             total_iou += sum(mIoU) 
 
@@ -319,7 +319,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
                 # Calculates metrics based on output
                 loss = criterion(out, target)
-                mIoU = iou(pred, target, 4)
+                mIoU = iou(pred, target)
                 total_loss += loss
                 total_iou += sum(mIoU) 
 

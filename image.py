@@ -80,3 +80,10 @@ def read_mask(file_path):
         Read in a mask image.
     """
     return cv2.imread(file_path, -1)
+
+def main():
+    image_mask = read_mask("dataset/train/gt/0_gt.png")
+    sh.show_mask(image_mask)
+
+if __name__ == "__main__":
+    main()
