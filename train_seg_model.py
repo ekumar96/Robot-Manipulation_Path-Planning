@@ -215,7 +215,7 @@ def save_prediction(model, dataloader, dump_dir, device, BATCH_SIZE):
                 image.write_mask(combined_image, f"{dump_dir}/{test_ID}_gt_pred.png")
 
 
-def iou(pred, target, n_classes=4):
+def iou(pred, target, n_classes=6):
     """
         Compute IoU on each object class and return as a list.
         :param pred (np.array object): predicted mask
@@ -223,7 +223,7 @@ def iou(pred, target, n_classes=4):
         :param n_classes (int): number of classes
         :return cls_ious (list()): a list of IoU on each object class
     """
-    
+    """
     prediction = pred
     _, pred = torch.max(prediction, dim=1)
     batch_num = prediction.shape[0]
@@ -264,7 +264,7 @@ def iou(pred, target, n_classes=4):
                 FN = pred_N[target_P].sum()
                 union = intersection + FN + FP  # or pred_P.sum() + target_P.sum() - intersection
                 cls_ious.append(float(intersection) / float(union))
-    return cls_ious"""
+    return cls_ious
 
 
 def run(device, model, loader, criterion, is_train=False, optimizer=None):
@@ -297,7 +297,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
             # Calculates metrics based on output
             loss = criterion(out, target)
-            mIoU = iou(out, target, 1)
+            mIoU = iou(out, target, 4)
             total_loss += loss
             total_iou += sum(mIoU) 
 
@@ -316,7 +316,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
                 # Calculates metrics based on output
                 loss = criterion(out, target)
-                mIoU = iou(out, target, 1)
+                mIoU = iou(out, target, 4)
                 total_loss += loss
                 total_iou += sum(mIoU) 
 
