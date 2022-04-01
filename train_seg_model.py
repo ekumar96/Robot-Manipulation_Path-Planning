@@ -6,6 +6,8 @@ import os
 import image
 import numpy as np
 from random import seed
+from segmentation_helper import check_dataloader, check_dataset
+import matplotlib.pyplot as plt
 from sim import get_tableau_palette
 import torch.nn.functional as F
 
@@ -31,6 +33,8 @@ class RGBDataset(Dataset):
         std_rgb = [0.171, 0.179, 0.197]
 
         self.dataset_dir = img_dir
+
+        self.has_gt = True
 
         # Transform to be applied on a sample.
         #  For this compose transforms.ToTensor() and transforms.Normalize() for RGB image should be enough.
@@ -85,10 +89,14 @@ class miniUNet(nn.Module):
         :param n_classes (int): number of segmentation classes (num objects + 1 for background)
         """
         super(miniUNet, self).__init__()
+
+        self.n_channels = n_channels
+        self.n_classes = n_classes
+        
         # TODO: complete this method
         # ===============================================================================
         
-        self.conv1 = nn.Conv2d(n_channels, 16, 3, padding=True)
+        self.conv1 = nn.Conv2d(in_channels = n_channels, out_channels = 16, kernel_size = 3, padding=True)
         self.conv2 = nn.Conv2d(16, 32, 3, padding=True)
         self.conv3 = nn.Conv2d(32, 64, 3, padding=True)
         self.conv4 = nn.Conv2d(64, 128, 3, padding=True)
@@ -103,6 +111,11 @@ class miniUNet(nn.Module):
     def forward(self, x):
         # TODO: complete this method
         # ===============================================================================
+        print("\n\n")
+        print(x)
+        #print(x.shape)
+        #print(type(x))
+        print("\n\n")
         concat1 = F.relu(self.conv1(x))
         x = F.max_pool2d(concat1, (2, 2))
 
@@ -246,7 +259,7 @@ def run(model, loader, criterion, is_train=False, optimizer=None):
         :return mean_epoch_loss (float): mean loss across this epoch
         :return mean_iou (float): mean iou across this epoch
     """
-    model.train(is_train)
+    #model.train()
     # TODO: complete this function 
     # ===============================================================================
     total_loss, total_iou = 0, 0
@@ -255,6 +268,7 @@ def run(model, loader, criterion, is_train=False, optimizer=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if is_train:
+        model.train()
         for batch in loader:
             # Gets input and target data from batch, sends to device (in case using GPU)
             input = batch['input'].to(device)
@@ -272,6 +286,7 @@ def run(model, loader, criterion, is_train=False, optimizer=None):
             loss.backward()
             optimizer.step()
     else:
+        model.eval()
         with torch.no_grad():
             for batch in loader:
             # Gets input and target data from batch, sends to device (in case using GPU)
@@ -330,6 +345,7 @@ if __name__ == "__main__":
 
     seg_dataset = RGBDataset(root_dir)
     train_dataset, test_dataset = random_split(seg_dataset, [270, 30])
+    #check_dataset(train_dataset)
 
     # ===============================================================================
 
@@ -337,7 +353,7 @@ if __name__ == "__main__":
     # ===============================================================================
     train_loader = DataLoader(train_dataset, batch_size, True) 
     test_loader = DataLoader(test_dataset, batch_size, False)
-
+    #check_dataloader(train_loader)
     # ===============================================================================
 
     # TODO: Prepare model
