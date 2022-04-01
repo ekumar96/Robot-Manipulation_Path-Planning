@@ -111,11 +111,11 @@ class miniUNet(nn.Module):
     def forward(self, x):
         # TODO: complete this method
         # ===============================================================================
-        print("\n\n")
-        print(x)
+        #print("\n\n")
+        #print(x)
         #print(x.shape)
         #print(type(x))
-        print("\n\n")
+        #print("\n\n")
         concat1 = F.relu(self.conv1(x))
         x = F.max_pool2d(concat1, (2, 2))
 
@@ -215,13 +215,32 @@ def save_prediction(model, dataloader, dump_dir, device, BATCH_SIZE):
                 image.write_mask(combined_image, f"{dump_dir}/{test_ID}_gt_pred.png")
 
 
-def iou(pred, target, n_classes=6):
+def iou(pred, target, n_classes=4):
     """
         Compute IoU on each object class and return as a list.
         :param pred (np.array object): predicted mask
         :param target (np.array object): ground truth mask
         :param n_classes (int): number of classes
         :return cls_ious (list()): a list of IoU on each object class
+    """
+    
+    prediction = pred
+    _, pred = torch.max(prediction, dim=1)
+    batch_num = prediction.shape[0]
+    class_num = prediction.shape[1]
+    batch_ious = list()
+    for batch_id in range(batch_num):
+        class_ious = list()
+        for class_id in range(1, class_num):  # class 0 is background
+            mask_pred = (pred[batch_id] == class_id).int()
+            mask_target = (target[batch_id] == class_id).int()
+            if mask_target.sum() == 0: # skip the occluded object
+                continue
+            intersection = (mask_pred * mask_target).sum()
+            union = (mask_pred + mask_target).sum() - intersection
+            class_ious.append(float(intersection) / float(union))
+        batch_ious.append(np.mean(class_ious))
+    return batch_ious
     """
     cls_ious = []
     # Flatten
@@ -245,7 +264,7 @@ def iou(pred, target, n_classes=6):
                 FN = pred_N[target_P].sum()
                 union = intersection + FN + FP  # or pred_P.sum() + target_P.sum() - intersection
                 cls_ious.append(float(intersection) / float(union))
-    return cls_ious
+    return cls_ious"""
 
 
 def run(device, model, loader, criterion, is_train=False, optimizer=None):
@@ -278,7 +297,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
             # Calculates metrics based on output
             loss = criterion(out, target)
-            mIoU = iou(out, target)
+            mIoU = iou(out, target, 1)
             total_loss += loss
             total_iou += sum(mIoU) 
 
@@ -297,7 +316,7 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
                 # Calculates metrics based on output
                 loss = criterion(out, target)
-                mIoU = iou(out, target)
+                mIoU = iou(out, target, 1)
                 total_loss += loss
                 total_iou += sum(mIoU) 
 
@@ -359,7 +378,7 @@ if __name__ == "__main__":
 
     # TODO: Prepare model
     # ===============================================================================
-    model = miniUNet(3, 6).to(device)
+    model = miniUNet(3, 4).to(device)
 
     # ===============================================================================
 
@@ -392,11 +411,11 @@ if __name__ == "__main__":
         # Save the model with the best mIoU
         if test_miou > best_miou:
             best_miou = test_miou
-            save_chkpt(model, epoch, test_miou)
+            save_chkpt(model, epoch, test_miou, 'checkpoint.pth.tar')
         epoch += 1
     print(best_miou)
     # Load the best checkpoint, use save_prediction() on the validation set and test set
-    model, epoch, best_miou = load_chkpt(model, 'checkpoint.pth.tar')
+    model, epoch, best_miou = load_chkpt(model, 'checkpoint.pth.tar', device)
     #save_prediction(model, device, _loader, val_dir)
     save_prediction(model, test_loader, root_dir, device, batch_size)
     #save_learning_curve(train_loss_list, train_miou_list, test_loss_list, test_miou_list)
