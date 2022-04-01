@@ -199,7 +199,8 @@ def save_prediction(model, dataloader, dump_dir, device, BATCH_SIZE):
     print(f"Saving predictions in directory {dump_dir}")
     if not os.path.exists(dump_dir):
         os.makedirs(dump_dir)
-
+        
+    model.to(device)
     model.eval()
     with torch.no_grad():
         for batch_ID, sample_batched in enumerate(dataloader):
@@ -247,7 +248,7 @@ def iou(pred, target, n_classes=6):
     return cls_ious
 
 
-def run(model, loader, criterion, is_train=False, optimizer=None):
+def run(device, model, loader, criterion, is_train=False, optimizer=None):
     """
         Run forward pass for each sample in the dataloader. Run backward pass and optimize if training.
         Calculate and return mean_epoch_loss and mean_iou
@@ -265,7 +266,7 @@ def run(model, loader, criterion, is_train=False, optimizer=None):
     total_loss, total_iou = 0, 0
     datalen = len(loader.dataset)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if is_train:
         model.train()
@@ -358,7 +359,7 @@ if __name__ == "__main__":
 
     # TODO: Prepare model
     # ===============================================================================
-    model = miniUNet(3, 3).to(device)
+    model = miniUNet(3, 6).to(device)
 
     # ===============================================================================
 
@@ -379,8 +380,8 @@ if __name__ == "__main__":
     best_miou = float('-inf')
     while epoch <= max_epochs:
         print('Epoch (', epoch, '/', max_epochs, ')')
-        train_loss, train_miou = run(model, train_loader, criterion, True, optimizer)
-        test_loss, test_miou = run(model, test_loader, criterion, False, optimizer)
+        train_loss, train_miou = run(device, model, train_loader, criterion, True, optimizer)
+        test_loss, test_miou = run(device, model, test_loader, criterion, False, optimizer)
         train_loss_list.append(train_loss)
         train_miou_list.append(train_miou)
         test_loss_list.append(test_loss)
