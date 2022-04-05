@@ -1,7 +1,9 @@
+from comsw4733_hw3.icp import gen_obj_depth
 import sim
 from random import seed
 import os
 import camera
+from camera import *
 import pybullet as p
 import numpy as np
 import image
@@ -9,6 +11,7 @@ import torch
 import train_seg_model
 from PIL import Image
 import torchvision
+import torchvision.transforms as transformsim
 import icp
 import transforms
 from scipy.spatial.transform import Rotation
@@ -62,7 +65,7 @@ if __name__ == "__main__":
     n_classes = len(object_shapes) + 1  # number of objects + 1 for background class
     model = train_seg_model.miniUNet(n_channels, n_classes)
     model.to(device)
-    model, _, _ = train_seg_model.load_chkpt(model, 'checkpoint_multi.pth.tar', device)
+    model, _, _ = train_seg_model.load_chkpt(model, 'checkpoint.pth.tar', device)
     model.eval()
 
 
@@ -76,6 +79,28 @@ if __name__ == "__main__":
         # TODO: now generate the segmentation prediction from the model
         pred = None  # pred should contain the predicted segmentation mask
         # ==================================================================================
+        """dump_dir = './clear_bin_pics/'
+        if not os.path.exists(dump_dir):
+            os.makedirs(dump_dir)
+        image.write_rgb(rgb_obs, dump_dir)
+        #image.write_depth(depth_obs, dump_dir)"""
+
+        image = Image.fromarray(rgb_obs)
+        # Define a transform to convert PIL 
+        # image to a Torch tensor
+        transform = transformsim.Compose([
+            transformsim.PILToTensor()
+        ])
+  
+        # transform = transforms.PILToTensor()
+        # Convert the PIL image to Torch tensor
+        img_tensor = transform(image).to(device)
+
+        with torch.no_grad():
+            #data = sample_batched['input'].to(device)
+            output = model(img_tensor)
+            _, pred = torch.max(output, dim=1)
+        
         # ===============================================================================
 
         markers = []
@@ -91,12 +116,14 @@ if __name__ == "__main__":
         # TODO: Mask out the depth based on predicted segmentation mask of object.
         obj_depth = np.zeros_like(depth_obs)
         # ====================================================================================
+        obj_depth = gen_obj_depth(obj_index, obj_depth, pred)
         # ====================================================================================
 
         # TODO: transform depth to 3d points in camera frame. We will refer to these points as
         #   segmented point cloud or seg_pt_cloud.
         cam_pts = np.zeros((0,3))
         # ====================================================================================
+        obj_point_cloud = cam_pts = np.asarray(transforms.depth_to_point_cloud(camera.intrinsic_matrix, obj_depth))
         # ====================================================================================
         if cam_pts.shape == (0,):
             print("No points are present in segmented point cloud. Please check your code. Continuing ...")
@@ -105,13 +132,14 @@ if __name__ == "__main__":
         # TODO: transform 3d points (seg_pt_cloud) in camera frame to the world frame
         world_pts = np.zeros((0,3))
         # ====================================================================================
+        world_pts = transforms.transform_point3s(cam_view2pose(view_matrix), cam_pts)
         # ====================================================================================
 
         world_pts_sample = world_pts[np.random.choice(range(world_pts.shape[0]), num_sample_pts), :]
         # (optional) Uncomment following to visualize points as small red spheres.
         #   These should approximately lie on chosen object index
-        # for position in world_pts_sample:
-        #     markers.append(sim.SphereMarker(position=position, radius=0.001, rgba_color=[1, 0, 0, 0.8]))
+        for position in world_pts_sample:
+             markers.append(sim.SphereMarker(position=position, radius=0.001, rgba_color=[1, 0, 0, 0.8]))
 
         # Sample points from ground truth mesh. 
         # TODO: sample pts from known object mesh. Use object_shapes[obj_index]
