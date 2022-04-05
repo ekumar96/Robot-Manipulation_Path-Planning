@@ -298,10 +298,15 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
             #pred = pred.cpu().detach().numpy()
             
             # Calculates metrics based on output
+            #for batch_id in range(8):
+                #print(target.shape)
+                #print(out.shape)
+            #    print(target[batch_id].shape)
             loss = criterion(out, target)
             mIoU = iou(pred, target) #convert out and target to numpy arrays? use torch.max?
+            print(mIoU)
             total_loss += loss
-            total_iou += sum(mIoU) 
+            total_iou += (sum(mIoU)/(len(mIoU)+1))*8
 
             # Zeros gradients of optimizer, back calculates weights, and makes optimizer take a step
             optimizer.zero_grad()
@@ -321,10 +326,10 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
                 loss = criterion(out, target)
                 mIoU = iou(pred, target)
                 total_loss += loss
-                total_iou += sum(mIoU) 
+                total_iou += (sum(mIoU)/(len(mIoU)+1))*8
 
     # Returning avg Loss/mIoU
-    train_loss, train_iou = total_loss/datalen, total_iou/datalen
+    train_loss, train_iou = total_loss/(datalen), total_iou/(datalen)
     return train_loss, train_iou
     # ===============================================================================
 
