@@ -1,4 +1,4 @@
-from comsw4733_hw3.icp import gen_obj_depth
+from icp import gen_obj_depth
 import sim
 from random import seed
 import os
@@ -15,7 +15,6 @@ import torchvision.transforms as transformsim
 import icp
 import transforms
 from scipy.spatial.transform import Rotation
-import transforms3d
 import random
 import main
 

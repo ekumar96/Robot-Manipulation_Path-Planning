@@ -3,7 +3,7 @@ import numpy as np
 import os
 import trimesh
 from camera import *
-import image, transforms, ply
+import image, transforms
 
 
 def mesh2pts(mesh_path, N):
