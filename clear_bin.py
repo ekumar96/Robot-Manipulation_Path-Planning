@@ -86,31 +86,32 @@ if __name__ == "__main__":
         #image.write_depth(depth_obs, dump_dir)"""
 
         
-        image = Image.fromarray(rgb_obs)
+        """image = Image.fromarray(rgb_obs)
         # Define a transform to convert PIL 
         # image to a Torch tensor
-        transform = transformsim.Compose([
-            transformsim.PILToTensor()
-        ])
-  
-        # transform = transforms.PILToTensor()
-        # Convert the PIL image to Torch tensor
-        img_tensor = transform(image).to(device)
+        transform = transforms.Compose([transforms.PILToTensor()])"""
+        mean_rgb = [0.485, 0.456, 0.406]
+        std_rgb = [0.229, 0.224, 0.225]
 
-        #img_tensor = torch.from_numpy(rgb_obs)
-        img_tensor = img_tensor[None, :]
-        print(img_tensor)
+        #rgb_obs = Image.fromarray(rgb_obs)
+        transform = transformsim.Compose([transformsim.ToTensor(), transformsim.Normalize(mean_rgb, std_rgb)])
+        img_tensor = transform(rgb_obs).unsqueeze(0).to(device)
+        #print(img_tensor)
+        
+        """
+        transform = transforms.toTensor()
+        rgb_obs = transform(rgb_obs).unsqueeze(0)"""
 
-        with torch.no_grad():
+        #with torch.no_grad():
             #data = sample_batched['input'].to(device)
-            output = model(img_tensor)
-            _, pred = torch.max(output, dim=1)
-            print(torch.unique(pred)) #only predicting 3
+        output = model(img_tensor)
+            #print(output)
+        _, pred = torch.max(output, dim=1)
+        print(torch.unique(pred)) #only predicting 3 and 0
         
         dump_dir = './clear_bin_seg/'
         if not os.path.exists(dump_dir):
             os.makedirs(dump_dir)
-        print(pred.shape[0])
         for i in range(pred.shape[0]):
             pred_image = train_seg_model.convert_seg_split_into_color_image(pred[0].cpu().numpy())
             cv2.imwrite(f"{dump_dir}/pred.png", pred_image.astype(np.uint8))
@@ -129,13 +130,16 @@ if __name__ == "__main__":
         # TODO: Mask out the depth based on predicted segmentation mask of object.
         obj_depth = np.zeros_like(depth_obs)
         # ====================================================================================
-        obj_depth = gen_obj_depth(obj_index, obj_depth, pred)
+        obj_depth = gen_obj_depth(obj_index, obj_depth, pred[0])
+        #obj_mask = np.where(pred == obj_index, 1, 0)
+        #obj_depth = depth_obs * obj_mask
+        print(np.unique(obj_depth))
         # ====================================================================================
         # TODO: transform depth to 3d points in camera frame. We will refer to these points as
         #   segmented point cloud or seg_pt_cloud.
         cam_pts = np.zeros((0,3))
         # ====================================================================================
-        obj_point_cloud = cam_pts = np.asarray(transforms.depth_to_point_cloud(my_camera.intrinsic_matrix, obj_depth[0, :, :]))
+        cam_pts = np.asarray(transforms.depth_to_point_cloud(my_camera.intrinsic_matrix, obj_depth))
         # ====================================================================================
         if cam_pts.shape == (0,):
             print("No points are present in segmented point cloud. Please check your code. Continuing ...")
@@ -181,7 +185,7 @@ if __name__ == "__main__":
         position = None  # This should contain the grasp position
         grasp_angle = None  # This should contain the grasp angle
         # ====================================================================================
-        grasp_angle = p.getEulerFromQuaternion(transform)[2]
+        #grasp_angle = p.getEulerFromQuaternion(transform)[2]
         grasp_angle = transform[2]
         position = transform[3] #Not sure if correct
         # ====================================================================================

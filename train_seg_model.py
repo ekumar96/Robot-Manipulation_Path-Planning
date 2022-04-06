@@ -29,8 +29,6 @@ class RGBDataset(Dataset):
         # one of these will call __getitem__ in a for loop depending on dataset_length, and fill the dataset with samples
 
         # Input normalization info to be used in transforms.Normalize()
-        mean_rgb = [0.722, 0.751, 0.807]
-        std_rgb = [0.171, 0.179, 0.197]
 
         self.dataset_dir = img_dir
 
@@ -41,7 +39,7 @@ class RGBDataset(Dataset):
         self.transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(mean_rgb, std_rgb)])
 
         # Number of samples in the dataset.
-        self.dataset_length = len(os.listdir(self.dataset_dir+"rgb"))
+        self.dataset_length = len(os.listdir(self.dataset_dir+"rgb/"))
         # ===============================================================================
 
     def __len__(self):
@@ -116,9 +114,7 @@ class miniUNet(nn.Module):
         #print(x.shape)
         #print(type(x))
         #print("\n\n")
-        b  =self.conv1(x.float())
-
-        concat1 = F.relu(b)
+        concat1 = F.relu(self.conv1(x))
         x = F.max_pool2d(concat1, (2, 2))
 
         concat2 = F.relu(self.conv2(x))
@@ -291,44 +287,35 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
 
     if is_train:
         model.train()
-        for batch in loader:
-            # Gets input and target data from batch, sends to device (in case using GPU)
-            input = batch['input'].to(device)
-            target = batch['target'].to(device)
-            out = model(input)
-            _, pred = torch.max(out, dim=1)
-            #pred = pred.cpu().detach().numpy()
-            
-            # Calculates metrics based on output
-            #for batch_id in range(8):
-                #print(target.shape)
-                #print(out.shape)
-            #    print(target[batch_id].shape)
-            loss = criterion(out, target)
-            mIoU = iou(pred, target) #convert out and target to numpy arrays? use torch.max?
-            print(mIoU)
-            total_loss += loss
-            total_iou += (sum(mIoU)/(len(mIoU)+1))*8
+    else:
+        model.eval()
 
-            # Zeros gradients of optimizer, back calculates weights, and makes optimizer take a step
+    for batch in loader:
+        # Gets input and target data from batch, sends to device (in case using GPU)
+        input = batch['input'].to(device)
+        target = batch['target'].to(device)
+
+        batch_num = input.size(dim=0)
+        out = model(input)
+        _, pred = torch.max(out, dim=1)
+        #pred = pred.cpu().detach().numpy()
+        
+        # Calculates metrics based on output
+        #for batch_id in range(8):
+            #print(target.shape)
+            #print(out.shape)
+        #    print(target[batch_id].shape)
+        loss = criterion(out, target)
+        mIoU = iou(pred, target) #convert out and target to numpy arrays? use torch.max?
+        print(mIoU)
+        total_loss += loss.item()
+        total_iou += (sum(mIoU)*batch_num / 3)#/(len(mIoU)+1))*8
+
+        # Zeros gradients of optimizer, back calculates weights, and makes optimizer take a step
+        if is_train:
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-    else:
-        model.eval()
-        with torch.no_grad():
-            for batch in loader:
-            # Gets input and target data from batch, sends to device (in case using GPU)
-                input = batch['input'].to(device)
-                target = batch['target'].to(device)
-                out = model(input)
-                _, pred = torch.max(out, dim=1)
-
-                # Calculates metrics based on output
-                loss = criterion(out, target)
-                mIoU = iou(pred, target)
-                total_loss += loss
-                total_iou += (sum(mIoU)/(len(mIoU)+1))*8
 
     # Returning avg Loss/mIoU
     train_loss, train_iou = total_loss/(datalen), total_iou/(datalen)
@@ -339,7 +326,7 @@ def convert_seg_split_into_color_image(img):
     color_palette = get_tableau_palette()
     colored_mask = np.zeros((*img.shape, 3))
 
-    print(np.unique(img))
+    #print(np.unique(img))
 
     for i, unique_val in enumerate(np.unique(img)):
         if unique_val == 0:
@@ -358,7 +345,7 @@ if __name__ == "__main__":
     # Complete all the TODO's in this file
     # - HINT: Most TODO's in this file are exactly the same as homework 2.
     batch_size = 8
-    epoch, max_epochs = 1, 30
+    epoch, max_epochs = 1, 20
 
     seed(0)
     torch.manual_seed(0)
