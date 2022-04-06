@@ -123,6 +123,7 @@ def depth_to_point_cloud(intrinsics, depth_image):
 
     for v in range(depth_image.shape[0]):
         for u in range(depth_image.shape[1]):
+            #print(depth_image.shape)
             if depth_image[v, u] <= 0:
                 continue
             point_cloud.append(

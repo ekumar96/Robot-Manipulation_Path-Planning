@@ -116,7 +116,9 @@ class miniUNet(nn.Module):
         #print(x.shape)
         #print(type(x))
         #print("\n\n")
-        concat1 = F.relu(self.conv1(x))
+        b  =self.conv1(x.float())
+
+        concat1 = F.relu(b)
         x = F.max_pool2d(concat1, (2, 2))
 
         concat2 = F.relu(self.conv2(x))

@@ -17,6 +17,7 @@ import transforms
 from scipy.spatial.transform import Rotation
 import random
 import main
+import cv2
 
 
 if __name__ == "__main__":
@@ -84,6 +85,7 @@ if __name__ == "__main__":
         image.write_rgb(rgb_obs, dump_dir)
         #image.write_depth(depth_obs, dump_dir)"""
 
+        
         image = Image.fromarray(rgb_obs)
         # Define a transform to convert PIL 
         # image to a Torch tensor
@@ -95,11 +97,23 @@ if __name__ == "__main__":
         # Convert the PIL image to Torch tensor
         img_tensor = transform(image).to(device)
 
+        #img_tensor = torch.from_numpy(rgb_obs)
+        img_tensor = img_tensor[None, :]
+        print(img_tensor)
+
         with torch.no_grad():
             #data = sample_batched['input'].to(device)
             output = model(img_tensor)
             _, pred = torch.max(output, dim=1)
+            print(torch.unique(pred)) #only predicting 3
         
+        dump_dir = './clear_bin_seg/'
+        if not os.path.exists(dump_dir):
+            os.makedirs(dump_dir)
+        print(pred.shape[0])
+        for i in range(pred.shape[0]):
+            pred_image = train_seg_model.convert_seg_split_into_color_image(pred[0].cpu().numpy())
+            cv2.imwrite(f"{dump_dir}/pred.png", pred_image.astype(np.uint8))
         # ===============================================================================
 
         markers = []
@@ -117,12 +131,11 @@ if __name__ == "__main__":
         # ====================================================================================
         obj_depth = gen_obj_depth(obj_index, obj_depth, pred)
         # ====================================================================================
-
         # TODO: transform depth to 3d points in camera frame. We will refer to these points as
         #   segmented point cloud or seg_pt_cloud.
         cam_pts = np.zeros((0,3))
         # ====================================================================================
-        obj_point_cloud = cam_pts = np.asarray(transforms.depth_to_point_cloud(camera.intrinsic_matrix, obj_depth))
+        obj_point_cloud = cam_pts = np.asarray(transforms.depth_to_point_cloud(my_camera.intrinsic_matrix, obj_depth[0, :, :]))
         # ====================================================================================
         if cam_pts.shape == (0,):
             print("No points are present in segmented point cloud. Please check your code. Continuing ...")
@@ -134,10 +147,10 @@ if __name__ == "__main__":
         world_pts = transforms.transform_point3s(cam_view2pose(view_matrix), cam_pts)
         # ====================================================================================
 
-        world_pts_sample = world_pts[np.random.choice(range(world_pts.shape[0]), num_sample_pts), :]
+        seg_pt_cloud = world_pts[np.random.choice(range(world_pts.shape[0]), num_sample_pts), :]
         # (optional) Uncomment following to visualize points as small red spheres.
         #   These should approximately lie on chosen object index
-        for position in world_pts_sample:
+        for position in seg_pt_cloud:
              markers.append(sim.SphereMarker(position=position, radius=0.001, rgba_color=[1, 0, 0, 0.8]))
 
         # Sample points from ground truth mesh. 
@@ -146,6 +159,7 @@ if __name__ == "__main__":
         # - We will call these points ground truth point cloud or gt_pt_cloud.
         # - Hint: use icp.mesh2pts function from hw2
         # ====================================================================================
+        gt_pt_cloud = icp.mesh2pts(object_shapes[obj_index], len(seg_pt_cloud))
         # ====================================================================================
 
         # TODO: Align ground truth point cloud (gt_pt_cloud) to segmented 
@@ -155,17 +169,21 @@ if __name__ == "__main__":
         #  ground truth object point cloud to the segmented object point cloud.
         transformed = None # should contain transformed ground truth point cloud
         # ====================================================================================
+        transform, transformed = icp.align_pts(gt_pt_cloud, seg_pt_cloud)
         # ====================================================================================
 
         # (optional) Uncomment following to visualize transformed points as small black spheres.
         #   These should approximately lie on chosen object index
-        # for position in transformed:
-        #     markers.append(sim.SphereMarker(position=position, radius=0.001, rgba_color=[0, 0, 0, 0.8]))
+        for position in transformed:
+             markers.append(sim.SphereMarker(position=position, radius=0.001, rgba_color=[0, 0, 0, 0.8]))
     
         # TODO: extract grasp position and angle
         position = None  # This should contain the grasp position
         grasp_angle = None  # This should contain the grasp angle
         # ====================================================================================
+        grasp_angle = p.getEulerFromQuaternion(transform)[2]
+        grasp_angle = transform[2]
+        position = transform[3] #Not sure if correct
         # ====================================================================================
 
         # visualize grasp position using a big red sphere
