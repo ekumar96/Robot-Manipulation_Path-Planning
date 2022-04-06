@@ -72,6 +72,7 @@ if __name__ == "__main__":
     obj_ids = env._objects_body_ids  # everything else will be treated as background
 
     object_list = ["Cube", "Rod", "Alien Toothbrush"]
+    num_grasped = 0
 
     is_grasped = np.zeros(3).astype(np.bool)
     while not np.all(is_grasped):  # Keep repeating until the tote is empty
@@ -120,7 +121,7 @@ if __name__ == "__main__":
             os.makedirs(dump_dir)
         for i in range(pred.shape[0]):
             pred_image = train_seg_model.convert_seg_split_into_color_image(pred[0].cpu().numpy())
-            cv2.imwrite(f"{dump_dir}/pred.png", pred_image.astype(np.uint8))
+            cv2.imwrite(f"{dump_dir}/pred_{num_grasped}.png", pred_image.astype(np.uint8))
         # ===============================================================================
 
         markers = []
@@ -212,6 +213,7 @@ if __name__ == "__main__":
 
         if grasp_success:  # Move the object to another tote
             is_grasped[obj_index] = True
+            num_grasped+=1
 
             # Get a list of robot configurations in small step sizes
             path_conf = main.rrt(env.robot_home_joint_config,
