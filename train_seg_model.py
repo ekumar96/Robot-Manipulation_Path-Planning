@@ -11,11 +11,14 @@ import matplotlib.pyplot as plt
 from sim import get_tableau_palette
 import torch.nn.functional as F
 
+# NOTE: using torch version 1.6.0, torchvision version 0.7.0
+# check version with: python -c "import torch; print(torch.__version__)"
+# install correct version with pip (eg. sudo pip3 install torch==1.6.0)
+
 # ==================================================
 mean_rgb = [0.485, 0.456, 0.406]
 std_rgb = [0.229, 0.224, 0.225]
 # ==================================================
-
 class RGBDataset(Dataset):
     def __init__(self, img_dir):
         """
@@ -23,7 +26,7 @@ class RGBDataset(Dataset):
             :param img_dir (str): path of train or test folder.
             :return None:
         """
-        # TODO: complete this method
+        # DONE: complete this method
         # ===============================================================================
         # This is an instance of torch.utils dataset class, which has a lot of other member variables and functions
         # one of these will call __getitem__ in a for loop depending on dataset_length, and fill the dataset with samples
@@ -32,6 +35,7 @@ class RGBDataset(Dataset):
 
         self.dataset_dir = img_dir
 
+        # All images in dataset have ground truth mask
         self.has_gt = True
 
         # Transform to be applied on a sample.
@@ -47,7 +51,7 @@ class RGBDataset(Dataset):
             Return the length of the dataset.
             :return dataset_length (int): length of the dataset, i.e. number of samples in the dataset
         """
-        # TODO: complete this method
+        # DONE: complete this method
         # ===============================================================================
         return self.dataset_length
         # ===============================================================================
@@ -58,7 +62,7 @@ class RGBDataset(Dataset):
             :param idx (int): index of each sample, in range(0, dataset_length)
             :return sample: a dictionary that stores paired rgb image and corresponding ground truth mask.
         """
-        # TODO: complete this method
+        # DONE: complete this method
         # Hint:
         # - Use image.read_rgb() and image.read_mask() to read the images.
         # - Think about how to associate idx with the file name of images.
@@ -91,9 +95,9 @@ class miniUNet(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
         
-        # TODO: complete this method
+        # DONE: complete this method
         # ===============================================================================
-        
+        # Build mini-U net model
         self.conv1 = nn.Conv2d(in_channels = n_channels, out_channels = 16, kernel_size = 3, padding=True)
         self.conv2 = nn.Conv2d(16, 32, 3, padding=True)
         self.conv3 = nn.Conv2d(32, 64, 3, padding=True)
@@ -107,8 +111,9 @@ class miniUNet(nn.Module):
         # ===============================================================================
 
     def forward(self, x):
-        # TODO: complete this method
+        # DONE: complete this method
         # ===============================================================================
+        # Pass data forward through model 
         #print("\n\n")
         #print(x)
         #print(x.shape)
@@ -277,13 +282,10 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
         :return mean_epoch_loss (float): mean loss across this epoch
         :return mean_iou (float): mean iou across this epoch
     """
-    #model.train()
-    # TODO: complete this function 
+    # DONE: complete this function 
     # ===============================================================================
     total_loss, total_iou = 0, 0
     datalen = len(loader.dataset)
-
-    #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if is_train:
         model.train()
@@ -295,27 +297,21 @@ def run(device, model, loader, criterion, is_train=False, optimizer=None):
         input = batch['input'].to(device)
         target = batch['target'].to(device)
 
-        batch_num = input.size(dim=0)
+        batch_num = input.size(dim=0) # Amount of data in batch
         out = model(input)
         _, pred = torch.max(out, dim=1)
-        #pred = pred.cpu().detach().numpy()
-        
-        # Calculates metrics based on output
-        #for batch_id in range(8):
-            #print(target.shape)
-            #print(out.shape)
-        #    print(target[batch_id].shape)
+       
         loss = criterion(out, target)
-        mIoU = iou(pred, target) #convert out and target to numpy arrays? use torch.max?
-        print(mIoU)
+        mIoU = iou(pred, target) 
+        #print(mIoU)
         total_loss += loss.item()
-        total_iou += (sum(mIoU)*batch_num / 3)#/(len(mIoU)+1))*8
+        total_iou += (sum(mIoU)*batch_num / 3) #converting batch class mIoU to batch mIoU
 
         # Zeros gradients of optimizer, back calculates weights, and makes optimizer take a step
         if is_train:
             optimizer.zero_grad()
             loss.backward()
-            optimizer.step()
+            optimizer.step() # Updating model weights
 
     # Returning avg Loss/mIoU
     train_loss, train_iou = total_loss/(datalen), total_iou/(datalen)
@@ -342,8 +338,6 @@ def convert_seg_split_into_color_image(img):
 
 if __name__ == "__main__":
     # ==============Part 4 (a) Training Segmentation model ================
-    # Complete all the TODO's in this file
-    # - HINT: Most TODO's in this file are exactly the same as homework 2.
     batch_size = 8
     epoch, max_epochs = 1, 20
 
@@ -354,7 +348,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("device:", device)
 
-    # TODO: Prepare train and test datasets
+    # DONE: Prepare train and test datasets
     # Load the "dataset" directory using RGBDataset class as a pytorch dataset
     # Split the above dataset into train and test dataset in 9:1 ratio using `torch.utils.data.random_split` method
     # ===============================================================================
@@ -366,27 +360,26 @@ if __name__ == "__main__":
 
     # ===============================================================================
 
-    # TODO: Prepare train and test Dataloaders. Use appropriate batch size
+    # DONE: Prepare train and test Dataloaders. Use appropriate batch size
     # ===============================================================================
     train_loader = DataLoader(train_dataset, batch_size, True) 
     test_loader = DataLoader(test_dataset, batch_size, False)
     #check_dataloader(train_loader)
     # ===============================================================================
 
-    # TODO: Prepare model
+    # DONE: Prepare model
     # ===============================================================================
     model = miniUNet(3, 4).to(device)
 
     # ===============================================================================
 
-    # TODO: Define criterion, optimizer and learning rate scheduler
+    # DONE: Define criterion, optimizer and learning rate scheduler
     # ===============================================================================
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    #learning rate scheduler?
     # ===============================================================================
 
-    # TODO: Train and test the model. 
+    # DONE: Train and test the model. 
     # Tips:
     # - Remember to save your model with best mIoU on objects using save_chkpt function
     # - Try to achieve Test mIoU >= 0.9 (Note: the value of 0.9 only makes sense if you have sufficiently large test set)
@@ -396,6 +389,7 @@ if __name__ == "__main__":
     best_miou = float('-inf')
     while epoch <= max_epochs:
         print('Epoch (', epoch, '/', max_epochs, ')')
+        # Run training, then test data through model and get performance statistics
         train_loss, train_miou = run(device, model, train_loader, criterion, True, optimizer)
         test_loss, test_miou = run(device, model, test_loader, criterion, False, optimizer)
         train_loss_list.append(train_loss)
@@ -410,6 +404,7 @@ if __name__ == "__main__":
             best_miou = test_miou
             save_chkpt(model, epoch, test_miou, 'checkpoint.pth.tar')
         epoch += 1
+    
     print(best_miou)
     # Load the best checkpoint, use save_prediction() on the validation set and test set
     model, epoch, best_miou = load_chkpt(model, 'checkpoint.pth.tar', device)
